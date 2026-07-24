@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>モーター QR 記録</title>
+</head>
+<body>
+  <header class="app-header">
+    <h1>モーター QR 記録</h1>
+    <span id="count-badge" class="count-badge">0 件</span>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="scan">スキャン</button>
+    <button class="tab-btn" data-tab="records">記録一覧</button>
+  </nav>
+
+  <!-- ===== スキャンタブ ===== -->
+  <section id="tab-scan" class="tab-panel active">
+    <div class="scanner-wrap">
+      <video id="video" playsinline muted></video>
+      <div class="scan-frame"></div>
+      <div id="scan-status" class="scan-status">カメラを起動してください</div>
+    </div>
+
+    <div class="scan-controls">
+      <button id="btn-start" class="btn btn-primary">カメラ開始</button>
+      <button id="btn-stop" class="btn btn-ghost" hidden>停止</button>
+      <button id="btn-manual" class="btn btn-ghost">手入力</button>
+    </div>
+
+    <form id="entry-form" class="entry-form" autocomplete="off">
+      <p class="form-hint" id="form-hint">QRを読み取ると内容が下に反映されます。確認して保存してください。</p>
+      <label>
+        製品名
+        <input type="text" id="field-product" placeholder="例: AC-MOTOR-750W" required>
+      </label>
+      <label>
+        シリアル番号
+        <input type="text" id="field-serial" placeholder="例: SN-2024-000123" required>
+      </label>
+      <label>
+        メモ（任意）
+        <input type="text" id="field-note" placeholder="設置場所・備考など">
+      </label>
+      <div class="raw-box" id="raw-box" hidden>
+        <span class="raw-label">読み取り内容</span>
+        <code id="raw-value"></code>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">記録を保存</button>
+    </form>
+  </section>
+
+  <!-- ===== 記録一覧タブ ===== -->
+  <section id="tab-records" class="tab-panel">
+    <div class="records-toolbar">
+      <input type="search" id="search-input" placeholder="製品名・シリアルで検索">
+      <button id="btn-export" class="btn btn-ghost">CSV書出</button>
+    </div>
+    <div id="records-list" class="records-list"></div>
+    <p id="records-empty" class="records-empty">まだ記録がありません。</p>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="vendor/jsQR.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
