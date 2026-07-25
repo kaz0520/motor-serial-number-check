@@ -141,6 +141,7 @@ body {
 }
 .entry-form input:focus { outline: 2px solid var(--primary); border-color: transparent; }
 
+.opt { font-weight: 400; color: var(--text-dim); font-size: 11px; }
 .input-row { display: flex; gap: 6px; align-items: stretch; }
 .input-row input { flex: 1; }
 .mini-btn {

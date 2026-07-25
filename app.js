@@ -198,14 +198,15 @@ form.addEventListener('submit', (e) => {
     raw: rawValue.textContent || '',
     createdAt: new Date().toISOString(),
   };
-  if (!rec.model || !rec.serial) {
-    showToast('型番とシリアルを入力してください', true);
+  if (!rec.model) {
+    showToast('型番を入力してください', true);
     return;
   }
   if (!rec.date) {
     showToast('入庫日付を入力してください', true);
     return;
   }
+  // シリアルは任意（SW系など印字のみの箱は空欄で保存可）
   const records = loadRecords();
   records.unshift(rec);
   saveRecords(records);
@@ -273,7 +274,7 @@ function renderList() {
         <button class="rc-delete">削除</button>
       </div>`;
     card.querySelector('.rc-product').textContent = r.model;
-    card.querySelector('.rc-serial').textContent = 'S/N: ' + r.serial;
+    card.querySelector('.rc-serial').textContent = r.serial ? 'S/N: ' + r.serial : 'S/N: （なし）';
     card.querySelector('.rc-qty').textContent = '入庫数 ' + (r.qty || 1);
     card.querySelector('.rc-date').textContent = '入庫日 ' + (r.date || '');
     card.querySelector('.rc-time').textContent = '登録: ' + formatDateTime(r.createdAt);

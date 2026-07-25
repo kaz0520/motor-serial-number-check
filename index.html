@@ -35,7 +35,7 @@
     </div>
 
     <form id="entry-form" class="entry-form" autocomplete="off">
-      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます。確認して保存してください。手入力もできます。</p>
+      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます（オフライン・AI不使用）。手入力も可。シリアルは空欄でも保存できます。</p>
 
       <label>
         型番
@@ -46,9 +46,9 @@
       </label>
 
       <label>
-        シリアル
+        シリアル<span class="opt">（任意・空欄可）</span>
         <div class="input-row">
-          <input type="text" id="field-serial" placeholder="例: 260312002A / SW251114" required>
+          <input type="text" id="field-serial" placeholder="例: 260312002A（SW系は空欄でも可）">
           <button type="button" class="mini-btn" data-fill="serial" title="読取値をシリアルへ">← 読取</button>
         </div>
       </label>
