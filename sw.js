@@ -1,4 +1,4 @@
-const CACHE = 'motor-qr-v1';
+const CACHE = 'motor-stock-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './icon.svg',
-  './vendor/jsQR.js',
+  './vendor/zxing.min.js',
 ];
 
 self.addEventListener('install', (e) => {
