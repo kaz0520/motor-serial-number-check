@@ -16,7 +16,9 @@ const btnStop = document.getElementById('btn-stop');
 const scanStatus = document.getElementById('scan-status');
 
 const form = document.getElementById('entry-form');
-const fModel = document.getElementById('field-model');
+const selModel = document.getElementById('field-model');
+const modelOther = document.getElementById('field-model-other');
+const modelOtherWrap = document.getElementById('model-other-wrap');
 const fSerial = document.getElementById('field-serial');
 const fQty = document.getElementById('field-qty');
 const fDate = document.getElementById('field-date');
@@ -38,6 +40,75 @@ function todayStr() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 fDate.value = todayStr();
+
+/* ---------- 型番リスト（プルダウン） ---------- */
+// リストを増やす時はここに型番を追加するだけ（自動でシリーズ分けされます）
+const MODELS = [
+  'EF-20YSD2-V', 'EF-25ASD2-V', 'EF-30BSD2-V', 'EF-30BTD2-V', 'EF-40DTC2-V', 'EF-50DTC2-V',
+  'EG-40CSB06', 'EG-40CTB07', 'EG-50DTC2-V', 'EG-50ETB10', 'EG-60DTC2-V', 'EG-60FTB19', 'EG-60FTC-V',
+  'EJ-105HTB11-SW35',
+  'EWF-20YSA2', 'EWF-30BSA2',
+  'KG-75GTB03', 'KG-90HT03',
+  'KH-75FT03', 'KH-80JTF01', 'KH-90GT2',
+];
+const OTHER = '__other__';
+
+function populateModelSelect() {
+  selModel.innerHTML = '';
+  const ph = new Option('型番を選択…', '');
+  ph.disabled = true;
+  ph.selected = true;
+  selModel.add(ph);
+
+  const groups = {};
+  const order = [];
+  MODELS.forEach((m) => {
+    const g = m.split('-')[0];
+    if (!groups[g]) { groups[g] = []; order.push(g); }
+    groups[g].push(m);
+  });
+  order.forEach((g) => {
+    const og = document.createElement('optgroup');
+    og.label = g + ' シリーズ';
+    groups[g].forEach((m) => og.appendChild(new Option(m, m)));
+    selModel.appendChild(og);
+  });
+
+  selModel.add(new Option('その他（手入力）', OTHER));
+}
+populateModelSelect();
+
+selModel.addEventListener('change', () => {
+  const isOther = selModel.value === OTHER;
+  modelOtherWrap.hidden = !isOther;
+  if (isOther) modelOther.focus();
+});
+
+// 型番の値を取得（その他の時は手入力欄）
+function getModelValue() {
+  if (selModel.value === OTHER) return modelOther.value.trim();
+  return selModel.value;
+}
+// 値をプルダウンに反映（一致すれば選択、無ければ「その他」に入れる）
+function setModelValue(value) {
+  const v = (value || '').trim();
+  if (!v) return;
+  const found = Array.prototype.some.call(selModel.options, (o) => o.value === v);
+  if (found) {
+    selModel.value = v;
+    modelOtherWrap.hidden = true;
+  } else {
+    selModel.value = OTHER;
+    modelOtherWrap.hidden = false;
+    modelOther.value = v;
+  }
+}
+// 選択をリセット
+function resetModelSelect() {
+  selModel.selectedIndex = 0;
+  modelOtherWrap.hidden = true;
+  modelOther.value = '';
+}
 
 /* ---------- タブ切替 ---------- */
 document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -118,7 +189,7 @@ function handleDecoded(text, fmt) {
   if (navigator.vibrate) navigator.vibrate(60);
 
   const parsed = parseCode(text);
-  if (parsed.model) fModel.value = parsed.model;
+  if (parsed.model) setModelValue(parsed.model);
   if (parsed.serial) fSerial.value = parsed.serial;
   // 構造化されず単一値のみの場合は、空いている方へ補助的に入れる
   if (!parsed.model && !parsed.serial) {
@@ -223,8 +294,7 @@ document.querySelectorAll('.mini-btn[data-fill]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const val = (rawValue.textContent || '').trim();
     if (!val) { showToast('先に読み取ってください', true); return; }
-    if (btn.dataset.fill === 'model') fModel.value = val;
-    else fSerial.value = val;
+    if (btn.dataset.fill === 'serial') fSerial.value = val;
   });
 });
 
@@ -235,14 +305,14 @@ form.addEventListener('submit', (e) => {
   const rec = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     date: fDate.value,
-    model: fModel.value.trim(),
+    model: getModelValue(),
     serial: fSerial.value.trim(),
     qty: isNaN(qty) || qty < 1 ? 1 : qty,
     raw: rawValue.textContent || '',
     createdAt: new Date().toISOString(),
   };
   if (!rec.model) {
-    showToast('型番を入力してください', true);
+    showToast('型番を選択してください', true);
     return;
   }
   if (!rec.date) {
@@ -255,7 +325,7 @@ form.addEventListener('submit', (e) => {
   saveRecords(records);
 
   // 次の入力へ（日付は保持、他はクリア）
-  fModel.value = '';
+  resetModelSelect();
   fSerial.value = '';
   fQty.value = '1';
   rawBox.hidden = true;
@@ -263,7 +333,7 @@ form.addEventListener('submit', (e) => {
   updateCount();
   showToast('記録を保存しました');
   setStatus(scanning ? '次のコードをスキャンできます' : '保存しました');
-  fModel.focus();
+  selModel.focus();
 });
 
 /* ---------- ストレージ ---------- */

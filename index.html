@@ -35,14 +35,18 @@
     </div>
 
     <form id="entry-form" class="entry-form" autocomplete="off">
-      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます（オフライン・AI不使用）。三菱製QRはシリアルを自動抽出。型番は手入力、入庫日付は当日が既定。シリアルは空欄でも保存できます。</p>
+      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます（オフライン・AI不使用）。三菱製QRはシリアルを自動抽出。型番はプルダウンから選択（無ければ「その他」で手入力）。入庫日付は当日が既定。シリアルは空欄でも保存できます。</p>
 
       <label>
         型番
-        <div class="input-row">
-          <input type="text" id="field-model" placeholder="例: EF-40DTC2-V" required>
-          <button type="button" class="mini-btn" data-fill="model" title="読取値を型番へ">← 読取</button>
-        </div>
+        <select id="field-model" required>
+          <option value="" disabled selected>型番を選択…</option>
+        </select>
+      </label>
+
+      <label id="model-other-wrap" hidden>
+        型番（手入力）<span class="opt">リストに無い型番</span>
+        <input type="text" id="field-model-other" placeholder="例: EF-99XYZ9-V">
       </label>
 
       <label>
