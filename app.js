@@ -162,7 +162,50 @@ function parseCode(text) {
     if (model || serial) return { model, serial };
   }
 
+  // 3) 三菱製品QR（品目コードが繰り返す固定形式）からシリアルを抽出
+  const mit = parseMitsubishi(raw);
+  if (mit && mit.serial) return { model: '', serial: mit.serial };
+
   return { model, serial };
+}
+
+// 三菱製QR: 「(先頭)コード␣シリアル+コード␣日付+コード+英字」の並びを利用。
+// 品目コードの値に依存せず、"コードが繰り返す"構造からシリアルを取り出す。
+// 例: "3096H94  260312002096H94  20260313075JP096H94A" -> "260312002A"
+function parseMitsubishi(raw) {
+  const chunks = raw.trim().split(/\s+/).filter(Boolean);
+  if (chunks.length < 3) return null;
+  // 先頭2チャンクの共通サフィックス = 品目コード
+  const code = commonSuffix(chunks[0], chunks[1]);
+  if (code.length < 4) return null;
+  // 別チャンクにも同じコードが含まれることを確認（形式の裏取り）
+  if (!chunks.slice(2).some((c) => c.includes(code))) return null;
+  // シリアル基幹部 = 2番目チャンクからコードを除いた部分（数字列）
+  const base = chunks[1].slice(0, chunks[1].length - code.length);
+  if (!/^\d{4,}$/.test(base)) return null;
+  // サフィックス = コードの直後に続く英字（例: 末尾の "A"）
+  let suffix = '';
+  for (const c of chunks) {
+    const idx = c.lastIndexOf(code);
+    if (idx >= 0) {
+      const tail = c.slice(idx + code.length);
+      if (/^[A-Za-z]{1,3}$/.test(tail)) { suffix = tail; break; }
+    }
+  }
+  return { serial: base + suffix };
+}
+
+// 2つの文字列の末尾から一致する共通部分を返す
+function commonSuffix(a, b) {
+  let i = a.length - 1;
+  let j = b.length - 1;
+  let s = '';
+  while (i >= 0 && j >= 0 && a[i] === b[j]) {
+    s = a[i] + s;
+    i--;
+    j--;
+  }
+  return s;
 }
 
 function pick(obj, keys) {
