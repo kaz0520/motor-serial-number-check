@@ -8,6 +8,9 @@ let imgReader = null;
 let scanning = false;
 let lastCode = null;
 let lastCodeAt = 0;
+let currentStream = null; // BarcodeDetector経路で使うカメラ映像
+let scanTimer = null; // BarcodeDetectorのスキャンループ
+let barcodeDetector; // undefined=未判定 / detector=対応 / null=非対応(ZXingへ)
 
 /* ---------- DOM ---------- */
 const video = document.getElementById('video');
@@ -137,6 +140,29 @@ function buildReader() {
   return new ZXing.BrowserMultiFormatReader(hints, 250);
 }
 
+// 端末標準の高性能デコーダ（スマホ純正と同じエンジン）。無ければZXingを使う。
+async function getDetector() {
+  if (barcodeDetector !== undefined) return barcodeDetector || null;
+  try {
+    if ('BarcodeDetector' in window) {
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      if (supported.includes('qr_code')) {
+        const want = ['qr_code', 'data_matrix', 'code_128', 'code_39', 'code_93',
+          'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar'].filter((f) => supported.includes(f));
+        barcodeDetector = new window.BarcodeDetector({ formats: want });
+        return barcodeDetector;
+      }
+    }
+  } catch (_) { /* 非対応 */ }
+  barcodeDetector = null;
+  return null;
+}
+
+const CAM_CONSTRAINTS = {
+  video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+  audio: false,
+};
+
 btnStart.addEventListener('click', startCamera);
 btnStop.addEventListener('click', stopCamera);
 
@@ -147,21 +173,23 @@ async function startCamera() {
   }
   try {
     setStatus('カメラを起動中…');
-    if (!codeReader) codeReader = buildReader();
-    // 高解像度を要求（細かいQRの読取精度を上げる）
-    const constraints = {
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    };
-    await codeReader.decodeFromConstraints(constraints, video, (result, err) => {
-      if (result) handleDecoded(result.getText(), result.getBarcodeFormat());
-      // err はフレーム毎の「未検出」を含むため無視
-    });
-    scanning = true;
+    const detector = await getDetector();
+    if (detector) {
+      // 高性能経路：自前でカメラを開き、標準デコーダで連続スキャン
+      currentStream = await navigator.mediaDevices.getUserMedia(CAM_CONSTRAINTS);
+      video.srcObject = currentStream;
+      video.setAttribute('playsinline', '');
+      await video.play();
+      scanning = true;
+      scanLoop(detector);
+    } else {
+      // 代替経路：ZXing
+      if (!codeReader) codeReader = buildReader();
+      await codeReader.decodeFromConstraints(CAM_CONSTRAINTS, video, (result) => {
+        if (result) handleDecoded(result.getText(), result.getBarcodeFormat());
+      });
+      scanning = true;
+    }
     btnStart.hidden = true;
     btnStop.hidden = false;
     setStatus('QR・バーコードを枠内に合わせてください');
@@ -173,11 +201,29 @@ async function startCamera() {
   }
 }
 
+// BarcodeDetector用の連続スキャンループ
+function scanLoop(detector) {
+  if (!scanning) return;
+  detector
+    .detect(video)
+    .then((codes) => {
+      if (scanning && codes && codes.length) handleDecoded(codes[0].rawValue, codes[0].format);
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (scanning) scanTimer = setTimeout(() => scanLoop(detector), 200);
+    });
+}
+
 function stopCamera() {
   scanning = false;
-  if (codeReader) {
-    try { codeReader.reset(); } catch (_) {}
+  if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+  if (codeReader) { try { codeReader.reset(); } catch (_) {} }
+  if (currentStream) {
+    currentStream.getTracks().forEach((t) => t.stop());
+    currentStream = null;
   }
+  try { video.srcObject = null; } catch (_) {}
   btnStart.hidden = false;
   btnStop.hidden = true;
   setStatus('カメラ停止中');
@@ -200,15 +246,32 @@ function applyContinuousFocus() {
 photoInput.addEventListener('change', async () => {
   const file = photoInput.files && photoInput.files[0];
   if (!file) return;
+  setStatus('写真を解析中…');
+
+  // まず端末標準デコーダ（高精度）で試す
+  const detector = await getDetector();
+  if (detector) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const codes = await detector.detect(bitmap);
+      if (bitmap.close) bitmap.close();
+      if (codes && codes.length) {
+        handleDecoded(codes[0].rawValue, codes[0].format);
+        photoInput.value = '';
+        return;
+      }
+    } catch (_) { /* 続けてZXingで試す */ }
+  }
+
+  // 次にZXingで試す
   const url = URL.createObjectURL(file);
   try {
-    setStatus('写真を解析中…');
     if (!imgReader) imgReader = buildReader();
     const result = await imgReader.decodeFromImageUrl(url);
     handleDecoded(result.getText(), result.getBarcodeFormat());
   } catch (e) {
     setStatus('写真からコードを検出できませんでした');
-    showToast('写真から読み取れませんでした。QRを画面いっぱいに大きく写して撮り直してください', true);
+    showToast('写真から読み取れませんでした。QRを画面いっぱいに大きく、ピントを合わせて撮り直してください', true);
   } finally {
     URL.revokeObjectURL(url);
     photoInput.value = '';
@@ -216,6 +279,7 @@ photoInput.addEventListener('change', async () => {
 });
 
 function formatName(fmt) {
+  if (typeof fmt === 'string') return fmt.toUpperCase(); // BarcodeDetector形式
   try {
     return ZXing.BarcodeFormat[fmt] || String(fmt);
   } catch (_) {
