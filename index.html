@@ -32,10 +32,13 @@
     <div class="scan-controls">
       <button id="btn-start" class="btn btn-primary">カメラ開始</button>
       <button id="btn-stop" class="btn btn-ghost" hidden>停止</button>
+      <label class="btn btn-ghost" for="photo-input">写真で読み取る</label>
+      <input type="file" accept="image/*" capture="environment" id="photo-input" hidden>
     </div>
+    <p class="scan-tip">読めない時は「写真で読み取る」で撮影すると確実です（QRを画面いっぱいに大きく写してください）。</p>
 
     <form id="entry-form" class="entry-form" autocomplete="off">
-      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます（オフライン・AI不使用）。三菱製QRはシリアルを自動抽出。型番はプルダウンから選択（無ければ「その他」で手入力）。入庫日付は当日が既定。シリアルは空欄でも保存できます。</p>
+      <p class="form-hint" id="form-hint">QR・バーコードを読み取ると内容が反映されます（オフライン・AI不使用）。読めない時は「写真で読み取る」も使えます。三菱製QRはシリアルを自動抽出。型番はプルダウンから選択（無ければ「その他」で手入力）。入庫日付は当日が既定。シリアルは空欄でも保存できます。</p>
 
       <label>
         型番

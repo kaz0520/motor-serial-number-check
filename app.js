@@ -4,6 +4,7 @@ const STORAGE_KEY = 'motor-stock-records-v2';
 
 /* ---------- 状態 ---------- */
 let codeReader = null;
+let imgReader = null;
 let scanning = false;
 let lastCode = null;
 let lastCodeAt = 0;
@@ -13,6 +14,7 @@ const video = document.getElementById('video');
 
 const btnStart = document.getElementById('btn-start');
 const btnStop = document.getElementById('btn-stop');
+const photoInput = document.getElementById('photo-input');
 const scanStatus = document.getElementById('scan-status');
 
 const form = document.getElementById('entry-form');
@@ -146,7 +148,15 @@ async function startCamera() {
   try {
     setStatus('カメラを起動中…');
     if (!codeReader) codeReader = buildReader();
-    const constraints = { video: { facingMode: { ideal: 'environment' } }, audio: false };
+    // 高解像度を要求（細かいQRの読取精度を上げる）
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    };
     await codeReader.decodeFromConstraints(constraints, video, (result, err) => {
       if (result) handleDecoded(result.getText(), result.getBarcodeFormat());
       // err はフレーム毎の「未検出」を含むため無視
@@ -155,6 +165,7 @@ async function startCamera() {
     btnStart.hidden = true;
     btnStop.hidden = false;
     setStatus('QR・バーコードを枠内に合わせてください');
+    applyContinuousFocus();
   } catch (err) {
     console.error(err);
     setStatus('カメラを起動できませんでした');
@@ -171,6 +182,38 @@ function stopCamera() {
   btnStop.hidden = true;
   setStatus('カメラ停止中');
 }
+
+// 連続オートフォーカスを要求（対応端末のみ・非対応でも無害）
+function applyContinuousFocus() {
+  setTimeout(() => {
+    try {
+      const stream = video.srcObject;
+      const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+      if (track && track.applyConstraints) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+    } catch (_) { /* 非対応端末は無視 */ }
+  }, 700);
+}
+
+/* ---------- 写真から読み取る（ライブ読取の代替・高精度） ---------- */
+photoInput.addEventListener('change', async () => {
+  const file = photoInput.files && photoInput.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  try {
+    setStatus('写真を解析中…');
+    if (!imgReader) imgReader = buildReader();
+    const result = await imgReader.decodeFromImageUrl(url);
+    handleDecoded(result.getText(), result.getBarcodeFormat());
+  } catch (e) {
+    setStatus('写真からコードを検出できませんでした');
+    showToast('写真から読み取れませんでした。QRを画面いっぱいに大きく写して撮り直してください', true);
+  } finally {
+    URL.revokeObjectURL(url);
+    photoInput.value = '';
+  }
+});
 
 function formatName(fmt) {
   try {

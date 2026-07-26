@@ -104,7 +104,13 @@ body {
   gap: 8px;
   margin: 14px 0;
 }
-.scan-controls .btn { flex: 1; }
+.scan-controls .btn { flex: 1; text-align: center; cursor: pointer; }
+.scan-tip {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
 
 .btn {
   padding: 12px 16px;
