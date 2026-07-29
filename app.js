@@ -347,43 +347,42 @@ function parseCode(text) {
   return { model, serial };
 }
 
-// 三菱製QR: 「(先頭)コード␣シリアル+コード␣日付+コード+英字」の並びを利用。
-// 品目コードの値に依存せず、"コードが繰り返す"構造からシリアルを取り出す。
-// 例: "3096H94  260312002096H94  20260313075JP096H94A" -> "260312002A"
+// 三菱製QR: 「(先頭)コード シリアル コード 日付JP コード 英字」の並び。
+// 区切り文字（空白・制御文字GS等）に依存せず、"品目コードが3回繰り返す"構造から
+// シリアルを取り出す。区切りが何であっても、また無くても動く。
+// 例: "3…096H94…260312002096H94…20260313075JP096H94A" -> "260312002A"
 function parseMitsubishi(raw) {
-  const chunks = raw.trim().split(/\s+/).filter(Boolean);
-  if (chunks.length < 3) return null;
-  // 先頭2チャンクの共通サフィックス = 品目コード
-  const code = commonSuffix(chunks[0], chunks[1]);
-  if (code.length < 4) return null;
-  // 別チャンクにも同じコードが含まれることを確認（形式の裏取り）
-  if (!chunks.slice(2).some((c) => c.includes(code))) return null;
-  // シリアル基幹部 = 2番目チャンクからコードを除いた部分（数字列）
-  const base = chunks[1].slice(0, chunks[1].length - code.length);
-  if (!/^\d{4,}$/.test(base)) return null;
-  // サフィックス = コードの直後に続く英字（例: 末尾の "A"）
-  let suffix = '';
-  for (const c of chunks) {
-    const idx = c.lastIndexOf(code);
-    if (idx >= 0) {
-      const tail = c.slice(idx + code.length);
-      if (/^[A-Za-z]{1,3}$/.test(tail)) { suffix = tail; break; }
-    }
-  }
+  // 区切り文字（空白・GS等の制御文字・記号）を全て除いて英数だけに連結
+  const merged = String(raw).replace(/[^0-9A-Za-z]/g, '');
+  if (merged.length < 12) return null;
+  // 3回以上出現する品目コード（英字を含む4〜10文字）を検出
+  const code = findRepeatedToken(merged, 4, 10);
+  if (!code) return null;
+  // コードで分割 → [先頭, シリアル, 日付JP…, (末尾英字)]
+  const parts = merged.split(code).filter((p) => p !== '');
+  if (parts.length < 2) return null;
+  // シリアル基幹部 = 最初に現れる6桁以上の数字列
+  const base = parts.find((p) => /^\d{6,}$/.test(p));
+  if (!base) return null;
+  // サフィックス = 末尾が1〜3文字の英字ならそれ（例: "A"）
+  const last = parts[parts.length - 1];
+  const suffix = /^[A-Za-z]{1,3}$/.test(last) ? last : '';
   return { serial: base + suffix };
 }
 
-// 2つの文字列の末尾から一致する共通部分を返す
-function commonSuffix(a, b) {
-  let i = a.length - 1;
-  let j = b.length - 1;
-  let s = '';
-  while (i >= 0 && j >= 0 && a[i] === b[j]) {
-    s = a[i] + s;
-    i--;
-    j--;
+// 文字列中で minLen〜maxLen 文字、英字を含み、3回以上出現する部分文字列を返す。
+// （長いものを優先。数字のみの並びは誤検出防止のため除外）
+function findRepeatedToken(s, minLen, maxLen) {
+  for (let len = maxLen; len >= minLen; len--) {
+    const seen = {};
+    for (let i = 0; i + len <= s.length; i++) {
+      const t = s.substr(i, len);
+      if (!/[A-Za-z]/.test(t)) continue; // 英字を含まない（＝数字だけ）は除外
+      seen[t] = (seen[t] || 0) + 1;
+      if (seen[t] >= 3) return t;
+    }
   }
-  return s;
+  return null;
 }
 
 function pick(obj, keys) {
