@@ -86,6 +86,14 @@
       <input type="search" id="search-input" placeholder="型番・シリアルで検索">
       <button id="btn-export" class="btn btn-ghost">CSV書出</button>
     </div>
+    <div class="select-bar" id="select-bar" hidden>
+      <label class="select-all">
+        <input type="checkbox" id="check-all">
+        <span>全選択</span>
+      </label>
+      <span id="select-count" class="select-count">0件選択</span>
+      <button id="btn-delete-selected" class="btn btn-danger" disabled>選択削除</button>
+    </div>
     <div id="records-list" class="records-list"></div>
     <p id="records-empty" class="records-empty">まだ記録がありません。</p>
   </section>

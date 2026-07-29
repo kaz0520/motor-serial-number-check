@@ -36,7 +36,14 @@ const emptyEl = document.getElementById('records-empty');
 const searchInput = document.getElementById('search-input');
 const countBadge = document.getElementById('count-badge');
 const btnExport = document.getElementById('btn-export');
+const selectBar = document.getElementById('select-bar');
+const checkAll = document.getElementById('check-all');
+const selectCount = document.getElementById('select-count');
+const btnDeleteSelected = document.getElementById('btn-delete-selected');
 const toast = document.getElementById('toast');
+
+const selectedIds = new Set(); // レ点で選択中の記録ID
+let lastFilteredIds = []; // 現在一覧に表示中の記録ID
 
 /* ---------- 初期日付（本日） ---------- */
 function todayStr() {
@@ -471,10 +478,13 @@ function renderList() {
     );
   });
 
+  lastFilteredIds = records.map((r) => r.id);
+
   listEl.innerHTML = '';
   emptyEl.hidden = records.length > 0;
   if (!records.length) {
     emptyEl.textContent = q ? '一致する記録がありません。' : 'まだ記録がありません。';
+    updateSelectionUI();
     return;
   }
 
@@ -482,27 +492,78 @@ function renderList() {
     const card = document.createElement('div');
     card.className = 'record-card';
     card.innerHTML = `
-      <div class="rc-product"></div>
-      <div class="rc-serial"></div>
-      <div class="rc-sub">
-        <span class="rc-qty"></span>
-        <span class="rc-date"></span>
-      </div>
-      <div class="rc-meta">
-        <span class="rc-time"></span>
-        <button class="rc-delete">削除</button>
+      <label class="rc-select"><input type="checkbox" class="rc-check"></label>
+      <div class="rc-body">
+        <div class="rc-product"></div>
+        <div class="rc-serial"></div>
+        <div class="rc-sub">
+          <span class="rc-qty"></span>
+          <span class="rc-date"></span>
+        </div>
+        <div class="rc-meta">
+          <span class="rc-time"></span>
+          <button class="rc-delete">削除</button>
+        </div>
       </div>`;
     card.querySelector('.rc-product').textContent = r.model;
     card.querySelector('.rc-serial').textContent = r.serial ? 'S/N: ' + r.serial : 'S/N: （なし）';
     card.querySelector('.rc-qty').textContent = '入庫数 ' + (r.qty || 1);
     card.querySelector('.rc-date').textContent = '入庫日 ' + (r.date || '');
     card.querySelector('.rc-time').textContent = '登録: ' + formatDateTime(r.createdAt);
+
+    const cb = card.querySelector('.rc-check');
+    cb.checked = selectedIds.has(r.id);
+    card.classList.toggle('selected', cb.checked);
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedIds.add(r.id);
+      else selectedIds.delete(r.id);
+      card.classList.toggle('selected', cb.checked);
+      updateSelectionUI();
+    });
+
     card.querySelector('.rc-delete').addEventListener('click', () => {
       if (confirm('この記録を削除しますか？')) deleteRecord(r.id);
     });
     listEl.appendChild(card);
   });
+
+  updateSelectionUI();
 }
+
+// 選択状態のバー（件数・全選択・ボタン）を更新
+function updateSelectionUI() {
+  const ids = new Set(loadRecords().map((r) => r.id));
+  // 存在しない記録IDは選択から除去
+  selectedIds.forEach((id) => { if (!ids.has(id)) selectedIds.delete(id); });
+
+  selectBar.hidden = ids.size === 0;
+  const n = selectedIds.size;
+  selectCount.textContent = n + '件選択';
+  btnDeleteSelected.disabled = n === 0;
+
+  const visibleSelected = lastFilteredIds.filter((id) => selectedIds.has(id)).length;
+  checkAll.checked = lastFilteredIds.length > 0 && visibleSelected === lastFilteredIds.length;
+  checkAll.indeterminate = visibleSelected > 0 && visibleSelected < lastFilteredIds.length;
+}
+
+// 全選択（表示中のものを対象）
+checkAll.addEventListener('change', () => {
+  if (checkAll.checked) lastFilteredIds.forEach((id) => selectedIds.add(id));
+  else lastFilteredIds.forEach((id) => selectedIds.delete(id));
+  renderList();
+});
+
+// 選択削除（まとめて削除）
+btnDeleteSelected.addEventListener('click', () => {
+  const n = selectedIds.size;
+  if (!n) return;
+  if (!confirm('選択した ' + n + ' 件の記録を削除しますか？')) return;
+  saveRecords(loadRecords().filter((r) => !selectedIds.has(r.id)));
+  selectedIds.clear();
+  updateCount();
+  renderList();
+  showToast(n + ' 件を削除しました');
+});
 
 searchInput.addEventListener('input', renderList);
 
