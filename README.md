@@ -57,6 +57,11 @@ python3 -m http.server 8000
 # 実機カメラを使うには HTTPS が必要
 ```
 
+## 困ったときは
+
+不具合と解決方法をまとめた **[トラブルシューティング / 開発メモ（TROUBLESHOOTING.md）](TROUBLESHOOTING.md)** を参照してください
+（QRが読めない・シリアルが読取値のまま入る・更新が反映されない・CSV文字化け・三菱QRの仕様 など）。
+
 ## ファイル構成
 
 ```
@@ -67,5 +72,6 @@ manifest.json      PWA マニフェスト
 sw.js              Service Worker（オフラインキャッシュ）
 icon.svg           アプリアイコン
 vendor/zxing.min.js  QR・バーコード読取ライブラリ（同梱・オフライン可）
+TROUBLESHOOTING.md   不具合と解決方法・三菱QR仕様の記録（引き継ぎ用）
 .github/workflows/deploy-pages.yml  GitHub Pages への自動デプロイ
 ```
